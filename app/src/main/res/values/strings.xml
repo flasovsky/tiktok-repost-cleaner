@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TikTok Repost Cleaner</string>
+    <string name="accessibility_service_label">TikTok Repost Cleaner</string>
+    <string name="accessibility_service_description">Используется для автоматического сканирования и удаления репостов в TikTok через интерфейс приложения.</string>
+</resources>
