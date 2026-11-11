@@ -1,0 +1,8 @@
+# Gradle wrapper scripts must keep LF line endings,
+# otherwise bash fails on Linux CI with "\r: command not found"
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+*.jar binary
+*.apk binary
+*.png binary
