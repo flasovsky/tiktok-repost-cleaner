@@ -37,6 +37,7 @@ class TikTokAccessibilityService : AccessibilityService() {
         private const val ACTION_DELAY_MS = 500L
         private const val SCROLL_DELAY_MS = 1500L
         private const val ELEMENT_WAIT_MS = 2000L
+        private const val POLL_INTERVAL_MS = 250L
 
         private var instance: TikTokAccessibilityService? = null
         fun getInstance(): TikTokAccessibilityService? = instance
@@ -146,9 +147,9 @@ class TikTokAccessibilityService : AccessibilityService() {
     private suspend fun performScan() {
         try {
             // 1. Find active TikTok window
-            val pkgName = getActiveTikTokPackage()
+            val pkgName = awaitTikTokForeground()
             if (pkgName == null) {
-                _scanEvents.emit(ScanEvent.Error("TikTok не запущен. Пожалуйста, откройте TikTok.", ErrorCode.TIKTOK_NOT_FOUND))
+                _scanEvents.emit(ScanEvent.Error("TikTok не открыт на экране. Приложение попробует открыть его автоматически — повторите запуск.", ErrorCode.TIKTOK_NOT_FOUND))
                 _serviceState.value = ServiceState.CONNECTED
                 return
             }
@@ -194,6 +195,24 @@ class TikTokAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return null
         val pkg = root.packageName?.toString() ?: return null
         return if (pkg == TIKTOK_PKG_MAIN || pkg == TIKTOK_PKG_ALT) pkg else null
+    }
+
+    /** True when TikTok is the window currently in the foreground. */
+    fun isTikTokInForeground(): Boolean = getActiveTikTokPackage() != null
+
+    /**
+     * The scan is normally started from our own UI, so TikTok may still be in the
+     * background for a moment after we bring it up. Poll until its window becomes
+     * active (or the timeout expires).
+     */
+    private suspend fun awaitTikTokForeground(timeoutMs: Long = 10_000L): String? {
+        var waited = 0L
+        while (waited < timeoutMs) {
+            getActiveTikTokPackage()?.let { return it }
+            delay(POLL_INTERVAL_MS)
+            waited += POLL_INTERVAL_MS
+        }
+        return getActiveTikTokPackage()
     }
 
     private suspend fun navigateToProfile(pkgName: String): Boolean {
@@ -361,9 +380,9 @@ class TikTokAccessibilityService : AccessibilityService() {
 
     private suspend fun performDeletion(repostIds: List<String>) {
         try {
-            val pkgName = getActiveTikTokPackage()
+            val pkgName = awaitTikTokForeground()
             if (pkgName == null) {
-                _scanEvents.emit(ScanEvent.Error("TikTok не запущен. Пожалуйста, откройте TikTok.", ErrorCode.TIKTOK_NOT_FOUND))
+                _scanEvents.emit(ScanEvent.Error("TikTok не открыт на экране. Приложение попробует открыть его автоматически — повторите запуск.", ErrorCode.TIKTOK_NOT_FOUND))
                 _serviceState.value = ServiceState.CONNECTED
                 return
             }

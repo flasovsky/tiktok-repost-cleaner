@@ -117,14 +117,33 @@ class MainViewModel @Inject constructor(
             _uiState.update { it.copy(
                 appState = AppState.SCANNING,
                 currentSessionId = sessionId,
-                scanProgress = ScanProgress(status = "Запуск..."),
+                scanProgress = ScanProgress(status = "Открываю TikTok..."),
                 reposts = emptyList(),
                 errorMessage = null
             )}
 
             observeReposts(sessionId)
             observeScanEvents(sessionId)
+            bringTikTokToForeground(service)
             service.startScan()
+        }
+    }
+
+    /**
+     * The scan is started from our own screen, so TikTok is in the background and
+     * the accessibility service cannot see its window. Bring TikTok to the front
+     * first; the service then waits for its window to become active.
+     */
+    private fun bringTikTokToForeground(service: TikTokAccessibilityService) {
+        if (service.isTikTokInForeground()) return
+        val pkg = _uiState.value.tikTokStatus.packageName
+            .ifBlank { TikTokAccessibilityService.TIKTOK_PKG_MAIN }
+        val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            // If TikTok cannot be launched the service reports TIKTOK_NOT_FOUND.
         }
     }
 
@@ -252,6 +271,7 @@ class MainViewModel @Inject constructor(
             )}
 
             observeScanEvents(sessionId)
+            bringTikTokToForeground(service)
             service.startDelete(pending.map { it.id })
         }
     }
